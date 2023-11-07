@@ -1,11 +1,13 @@
-from ..code_interpreters.create_code_interpreter import create_code_interpreter
-from ..utils.merge_deltas import merge_deltas
-from ..utils.get_user_info_string import get_user_info_string
-from ..utils.display_markdown_message import display_markdown_message
-from ..rag.get_relevant_procedures import get_relevant_procedures
-from ..utils.truncate_output import truncate_output
 import traceback
+
 import litellm
+
+from ..code_interpreters.create_code_interpreter import create_code_interpreter
+from ..code_interpreters.language_map import language_map
+from ..utils.display_markdown_message import display_markdown_message
+from ..utils.merge_deltas import merge_deltas
+from ..utils.truncate_output import truncate_output
+
 
 def respond(interpreter):
     """
@@ -14,23 +16,7 @@ def respond(interpreter):
     """
 
     while True:
-
-        ### PREPARE MESSAGES ###
-
-        system_message = interpreter.system_message
-        
-        # Open Procedures is an open-source database of tiny, up-to-date coding tutorials.
-        # We can query it semantically and append relevant tutorials/procedures to our system message
-        get_relevant_procedures(interpreter.messages[-2:])
-        if not interpreter.local:
-            try:
-                system_message += "\n\n" + get_relevant_procedures(interpreter.messages[-2:])
-            except:
-                # This can fail for odd SLL reasons. It's not necessary, so we can continue
-                pass
-        
-        # Add user info to system_message, like OS, CWD, etc
-        system_message += "\n\n" + get_user_info_string()
+        system_message = interpreter.generate_system_message()
 
         # Create message object
         system_message = {"role": "system", "message": system_message}
@@ -44,7 +30,6 @@ def respond(interpreter):
             if "output" in message and message["output"] == "":
                 message["output"] = "No output"
 
-
         ### RUN THE LLM ###
 
         # Add a new message from the assistant to interpreter's "messages" attribute
@@ -54,38 +39,81 @@ def respond(interpreter):
         # Start putting chunks into the new message
         # + yielding chunks to the user
         try:
-            for chunk in interpreter._llm(messages_for_llm):
+            # Track the type of chunk that the coding LLM is emitting
+            chunk_type = None
 
+            for chunk in interpreter._llm(messages_for_llm):
                 # Add chunk to the last message
                 interpreter.messages[-1] = merge_deltas(interpreter.messages[-1], chunk)
 
                 # This is a coding llm
                 # It will yield dict with either a message, language, or code (or language AND code)
+
+                # We also want to track which it's sending to we can send useful flags.
+                # (otherwise pretty much everyone needs to implement this)
+                if "message" in chunk and chunk_type != "message":
+                    chunk_type = "message"
+                    yield {"start_of_message": True}
+                elif "language" in chunk and chunk_type != "code":
+                    chunk_type = "code"
+                    yield {"start_of_code": True}
+                if "code" in chunk and chunk_type != "code":
+                    # (This shouldn't happen though — ^ "language" should be emitted first, but sometimes GPT-3.5 forgets this)
+                    # (But I'm pretty sure we handle that? If it forgets we emit Python anyway?)
+                    chunk_type = "code"
+                    yield {"start_of_code": True}
+                elif "message" not in chunk and chunk_type == "message":
+                    chunk_type = None
+                    yield {"end_of_message": True}
+
                 yield chunk
+
+            # We don't trigger the end_of_message or end_of_code flag if we actually end on either
+            if chunk_type == "message":
+                yield {"end_of_message": True}
+            elif chunk_type == "code":
+                yield {"end_of_code": True}
+
         except litellm.exceptions.BudgetExceededError:
-            display_markdown_message(f"""> Max budget exceeded
+            display_markdown_message(
+                f"""> Max budget exceeded
 
                 **Session spend:** ${litellm._current_cost}
                 **Max budget:** ${interpreter.max_budget}
 
                 Press CTRL-C then run `interpreter --max_budget [higher USD amount]` to proceed.
-            """)
+            """
+            )
             break
         # Provide extra information on how to change API keys, if we encounter that error
         # (Many people writing GitHub issues were struggling with this)
         except Exception as e:
-            if 'auth' in str(e).lower() or 'api key' in str(e).lower():
+            if (
+                interpreter.local == False
+                and "auth" in str(e).lower()
+                or "api key" in str(e).lower()
+            ):
                 output = traceback.format_exc()
-                raise Exception(f"{output}\n\nThere might be an issue with your API key(s).\n\nTo reset your API key (we'll use OPENAI_API_KEY for this example, but you may need to reset your ANTHROPIC_API_KEY, HUGGINGFACE_API_KEY, etc):\n        Mac/Linux: 'export OPENAI_API_KEY=your-key-here',\n        Windows: 'setx OPENAI_API_KEY your-key-here' then restart terminal.\n\n")
+                raise Exception(
+                    f"{output}\n\nThere might be an issue with your API key(s).\n\nTo reset your API key (we'll use OPENAI_API_KEY for this example, but you may need to reset your ANTHROPIC_API_KEY, HUGGINGFACE_API_KEY, etc):\n        Mac/Linux: 'export OPENAI_API_KEY=your-key-here',\n        Windows: 'setx OPENAI_API_KEY your-key-here' then restart terminal.\n\n"
+                )
+            elif interpreter.local:
+                raise Exception(
+                    str(e)
+                    + """
+
+Please make sure LM Studio's local server is running by following the steps above.
+
+If LM Studio's local server is running, please try a language model with a different architecture.
+
+                    """
+                )
             else:
                 raise
-        
-        
-        
+
         ### RUN CODE (if it's there) ###
 
         if "code" in interpreter.messages[-1]:
-            
             if interpreter.debug_mode:
                 print("Running code:", interpreter.messages[-1])
 
@@ -94,16 +122,33 @@ def respond(interpreter):
                 code = interpreter.messages[-1]["code"]
 
                 # Fix a common error where the LLM thinks it's in a Jupyter notebook
-                if interpreter.messages[-1]["language"] == "python" and code.startswith("!"):
+                if interpreter.messages[-1]["language"] == "python" and code.startswith(
+                    "!"
+                ):
                     code = code[1:]
                     interpreter.messages[-1]["code"] = code
                     interpreter.messages[-1]["language"] = "shell"
 
                 # Get a code interpreter to run it
                 language = interpreter.messages[-1]["language"]
-                if language not in interpreter._code_interpreters:
-                    interpreter._code_interpreters[language] = create_code_interpreter(language)
-                code_interpreter = interpreter._code_interpreters[language]
+                if language in language_map:
+                    if language not in interpreter._code_interpreters:
+                        interpreter._code_interpreters[
+                            language
+                        ] = create_code_interpreter(language)
+                    code_interpreter = interpreter._code_interpreters[language]
+                else:
+                    # This still prints the code but don't allow code to run. Let's Open-Interpreter know through output message
+                    error_output = f"Error: Open Interpreter does not currently support {language}."
+                    print(error_output)
+
+                    interpreter.messages[-1]["output"] = ""
+                    output = "\n" + error_output
+
+                    # Truncate output
+                    output = truncate_output(output, interpreter.max_output)
+                    interpreter.messages[-1]["output"] = output.strip()
+                    break
 
                 # Yield a message, such that the user can stop code execution if they want to
                 try:

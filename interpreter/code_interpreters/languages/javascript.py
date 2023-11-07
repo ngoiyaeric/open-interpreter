@@ -1,5 +1,7 @@
-from ..subprocess_code_interpreter import SubprocessCodeInterpreter
 import re
+
+from ..subprocess_code_interpreter import SubprocessCodeInterpreter
+
 
 class JavaScript(SubprocessCodeInterpreter):
     file_extension = "js"
@@ -8,10 +10,10 @@ class JavaScript(SubprocessCodeInterpreter):
     def __init__(self):
         super().__init__()
         self.start_cmd = "node -i"
-        
+
     def preprocess_code(self, code):
         return preprocess_javascript(code)
-    
+
     def line_postprocessor(self, line):
         # Node's interactive REPL outputs a billion things
         # So we clean it up:
@@ -20,17 +22,17 @@ class JavaScript(SubprocessCodeInterpreter):
         if line.strip() in ["undefined", 'Type ".help" for more information.']:
             return None
         # Remove trailing ">"s
-        line = re.sub(r'^\s*(>\s*)+', '', line)
+        line = re.sub(r"^\s*(>\s*)+", "", line)
         return line
 
     def detect_active_line(self, line):
-        if "## active_line " in line:
-            return int(line.split("## active_line ")[1].split(" ##")[0])
+        if "##active_line" in line:
+            return int(line.split("##active_line")[1].split("##")[0])
         return None
 
     def detect_end_of_execution(self, line):
-        return "## end_of_execution ##" in line
-    
+        return "##end_of_execution##" in line
+
 
 def preprocess_javascript(code):
     """
@@ -45,7 +47,7 @@ def preprocess_javascript(code):
 
     for i, line in enumerate(lines, 1):
         # Add active line print
-        processed_lines.append(f'console.log("## active_line {i} ##");')
+        processed_lines.append(f'console.log("##active_line{i}##");')
         processed_lines.append(line)
 
     # Join lines to form the processed code
@@ -58,7 +60,7 @@ try {{
 }} catch (e) {{
     console.log(e);
 }}
-console.log("## end_of_execution ##");
+console.log("##end_of_execution##");
 """
 
     return processed_code
