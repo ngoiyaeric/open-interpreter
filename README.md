@@ -20,6 +20,10 @@
 
 <br>
 
+**Update:** ● 0.1.12 supports `--vision` (experimental).
+
+<br>
+
 ```shell
 pip install open-interpreter
 ```

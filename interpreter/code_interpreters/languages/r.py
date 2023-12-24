@@ -7,8 +7,9 @@ class R(SubprocessCodeInterpreter):
     file_extension = "r"
     proper_name = "R"
 
-    def __init__(self):
+    def __init__(self, config):
         super().__init__()
+        self.config = config
         self.start_cmd = "R -q --vanilla"  # Start R in quiet and vanilla mode
 
     def preprocess_code(self, code):
@@ -33,9 +34,9 @@ class R(SubprocessCodeInterpreter):
 tryCatch({{
 {processed_code}
 }}, error=function(e){{
-    cat("## execution_error ##\\n", conditionMessage(e), "\\n");
+    cat("##execution_error##\\n", conditionMessage(e), "\\n");
 }})
-cat("## end_of_execution ##\\n");
+cat("##end_of_execution##\\n");
 """
         # Count the number of lines of processed_code
         # (R echoes all code back for some reason, but we can skip it if we track this!)
@@ -70,4 +71,4 @@ cat("## end_of_execution ##\\n");
         return None
 
     def detect_end_of_execution(self, line):
-        return "##end_of_execution##" in line or "## execution_error ##" in line
+        return "##end_of_execution##" in line or "##execution_error##" in line

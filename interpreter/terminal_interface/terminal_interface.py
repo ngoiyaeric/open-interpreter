@@ -8,11 +8,16 @@ try:
 except ImportError:
     pass
 
+import base64
 import random
+import re
 
 from ..utils.check_for_package import check_for_package
 from ..utils.display_markdown_message import display_markdown_message
+from ..utils.display_output import display_output
+from ..utils.find_image_path import find_image_path
 from ..utils.scan_code import scan_code
+from ..utils.system_debug_info import system_info
 from ..utils.truncate_output import truncate_output
 from .components.code_block import CodeBlock
 from .components.message_block import MessageBlock
@@ -22,9 +27,10 @@ from .magic_commands import handle_magic_command
 examples = [
     "How many files are on my desktop?",
     "What time is it in Seattle?",
-    "Check all the links on `openinterpreter.com`.",
+    "Make me a simple Pomodoro app.",
+    "Open Chrome and go to YouTube.",
 ]
-random.shuffle(examples)
+# random.shuffle(examples)
 for example in examples:
     readline.add_history(example)
 
@@ -80,6 +86,24 @@ def terminal_interface(interpreter, message):
         if message.strip() == "interpreter --local":
             print("Please press CTRL-C then run `interpreter --local`.")
             continue
+
+        if True:  ################## interpreter.vision:
+            # Is the input a path to an image? Like they just dragged it into the terminal?
+            image_path = find_image_path(message)
+
+            ## If we found an image, add it to the message
+            if image_path:
+                if interpreter.debug_mode:
+                    print("Found image:", image_path)
+                # Turn it into base64
+                with open(image_path, "rb") as image_file:
+                    encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
+                file_extension = image_path.split(".")[-1]
+                message = {
+                    "role": "user",
+                    "message": message,
+                    "image": f"data:image/{file_extension};base64,{encoded_string}",
+                }
 
         # Track if we've ran a code block.
         # We'll use this to determine if we should render a new code block,
@@ -173,6 +197,20 @@ def terminal_interface(interpreter, message):
                             )
                             break
 
+                if "image" in chunk or "html" in chunk or "javascript" in chunk:
+                    # Good to keep the LLM informed <3
+                    message_for_llm = display_output(chunk)
+                    if message_for_llm:
+                        if "output" in interpreter.messages[-1]:
+                            interpreter.messages[-1]["output"] += "\n" + message_for_llm
+                        else:
+                            interpreter.messages[-1]["output"] = message_for_llm
+
+                        # I know this is insane, but the easiest way to now display this
+                        # is to set the chunk to an output chunk, which will trigger the next conditional!
+
+                        chunk = {"output": message_for_llm}
+
                 # Output
                 if "output" in chunk:
                     ran_code_block = True
@@ -212,3 +250,6 @@ def terminal_interface(interpreter, message):
                 continue
             else:
                 break
+        except:
+            system_info()
+            raise

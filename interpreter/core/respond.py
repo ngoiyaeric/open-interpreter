@@ -1,3 +1,4 @@
+import time
 import traceback
 
 import litellm
@@ -5,6 +6,7 @@ import litellm
 from ..code_interpreters.create_code_interpreter import create_code_interpreter
 from ..code_interpreters.language_map import language_map
 from ..utils.display_markdown_message import display_markdown_message
+from ..utils.html_to_base64 import html_to_base64
 from ..utils.merge_deltas import merge_deltas
 from ..utils.truncate_output import truncate_output
 
@@ -14,6 +16,8 @@ def respond(interpreter):
     Yields tokens, but also adds them to interpreter.messages. TBH probably would be good to seperate those two responsibilities someday soon
     Responds until it decides not to run any more code or say anything else.
     """
+
+    last_unsupported_code = ""
 
     while True:
         system_message = interpreter.generate_system_message()
@@ -130,25 +134,31 @@ If LM Studio's local server is running, please try a language model with a diffe
                     interpreter.messages[-1]["language"] = "shell"
 
                 # Get a code interpreter to run it
-                language = interpreter.messages[-1]["language"]
+                language = interpreter.messages[-1]["language"].lower().strip()
                 if language in language_map:
                     if language not in interpreter._code_interpreters:
+                        # Create code interpreter
+                        config = {"language": language, "vision": interpreter.vision}
                         interpreter._code_interpreters[
                             language
-                        ] = create_code_interpreter(language)
+                        ] = create_code_interpreter(config)
                     code_interpreter = interpreter._code_interpreters[language]
                 else:
                     # This still prints the code but don't allow code to run. Let's Open-Interpreter know through output message
-                    error_output = f"Error: Open Interpreter does not currently support {language}."
-                    print(error_output)
 
-                    interpreter.messages[-1]["output"] = ""
-                    output = "\n" + error_output
+                    output = (
+                        f"Open Interpreter does not currently support `{language}`."
+                    )
 
-                    # Truncate output
-                    output = truncate_output(output, interpreter.max_output)
-                    interpreter.messages[-1]["output"] = output.strip()
-                    break
+                    yield {"output": output}
+                    interpreter.messages[-1]["output"] = output
+
+                    # Let the response continue so it can deal with the unsupported code in another way. Also prevent looping on the same piece of code.
+                    if code != last_unsupported_code:
+                        last_unsupported_code = code
+                        continue
+                    else:
+                        break
 
                 # Yield a message, such that the user can stop code execution if they want to
                 try:
@@ -170,12 +180,26 @@ If LM Studio's local server is running, please try a language model with a diffe
                         output = truncate_output(output, interpreter.max_output)
 
                         interpreter.messages[-1]["output"] = output.strip()
+                    # Vision
+                    if interpreter.vision:
+                        base64_image = None
+                        if "image" in line:
+                            base64_image = line["image"]
+                        if "html" in line:
+                            base64_image = html_to_base64(line["html"])
+
+                        if base64_image:
+                            yield {"output": "Sending image output to GPT-4V..."}
+                            interpreter.messages[-1][
+                                "image"
+                            ] = f"data:image/jpeg;base64,{base64_image}"
 
             except:
                 output = traceback.format_exc()
                 yield {"output": output.strip()}
                 interpreter.messages[-1]["output"] = output.strip()
 
+            yield {"active_line": None}
             yield {"end_of_execution": True}
 
         else:
