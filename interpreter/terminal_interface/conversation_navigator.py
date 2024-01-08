@@ -9,12 +9,18 @@ import subprocess
 
 import inquirer
 
-from ..utils.display_markdown_message import display_markdown_message
-from ..utils.local_storage_path import get_storage_path
 from .render_past_conversation import render_past_conversation
+from .utils.display_markdown_message import display_markdown_message
+from .utils.local_storage_path import get_storage_path
 
 
 def conversation_navigator(interpreter):
+    print(
+        "This feature is not working as of 0.2.0 (The New Computer Update). Please consider submitting a PR to repair it with the new streaming format."
+    )
+    import time
+
+    time.sleep(5)
     conversations_dir = get_storage_path("conversations")
 
     display_markdown_message(

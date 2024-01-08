@@ -1,7 +1,11 @@
-from ..utils.display_markdown_message import display_markdown_message
+"""
+This is all messed up.... Uses the old streaming structure.
+"""
+
+
 from .components.code_block import CodeBlock
 from .components.message_block import MessageBlock
-from .magic_commands import handle_magic_command
+from .utils.display_markdown_message import display_markdown_message
 
 
 def render_past_conversation(messages):
