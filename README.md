@@ -15,7 +15,7 @@
 
 <br>
 
-![thumbnail-ncu](https://github.com/KillianLucas/open-interpreter/assets/63927363/1b19a5db-b486-41fd-a7a1-fe2028031686)
+![poster](https://github.com/KillianLucas/open-interpreter/assets/63927363/08f0d493-956b-4d49-982e-67d4b20c4b56)
 
 <br>
 <p align="center">
@@ -55,6 +55,10 @@ https://github.com/KillianLucas/open-interpreter/assets/63927363/37152071-680d-4
 #### An interactive demo is also available on Google Colab:
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1WKmRXZgsErej2xUriKzxrEAXdxMSgWbb?usp=sharing)
+
+#### Along with an example voice interface, inspired by _Her_:
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1NojYGHDgxH6Y1G1oxThEBBb2AtyODBIK)
 
 ## Quick Start
 
@@ -149,7 +153,7 @@ interpreter.chat("These look great but can you make the subtitles bigger?")
 In Python, Open Interpreter remembers conversation history. If you want to start fresh, you can reset it:
 
 ```python
-interpreter.reset()
+interpreter.messages = []
 ```
 
 ### Save and Restore Chats
@@ -158,7 +162,7 @@ interpreter.reset()
 
 ```python
 messages = interpreter.chat("My name is Killian.") # Save messages to 'messages'
-interpreter.reset() # Reset interpreter ("Killian" will be forgotten)
+interpreter.messages = [] # Reset interpreter ("Killian" will be forgotten)
 
 interpreter.messages = messages # Resume chat from 'messages' ("Killian" will be remembered)
 ```
@@ -378,7 +382,7 @@ Visit [our roadmap](https://github.com/KillianLucas/open-interpreter/blob/main/d
 
 **Note**: This software is not affiliated with OpenAI.
 
-![poster](https://github.com/KillianLucas/open-interpreter/assets/63927363/08f0d493-956b-4d49-982e-67d4b20c4b56)
+![thumbnail-ncu](https://github.com/KillianLucas/open-interpreter/assets/63927363/1b19a5db-b486-41fd-a7a1-fe2028031686)
 
 > Having access to a junior programmer working at the speed of your fingertips ... can make new workflows effortless and efficient, as well as open the benefits of programming to new audiences.
 >
