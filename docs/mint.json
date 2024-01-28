@@ -20,7 +20,7 @@
   },
   "topbarLinks": [
     {
-      "name": "35K ★ GitHub",
+      "name": "39K ★ GitHub",
       "url": "https://github.com/KillianLucas/open-interpreter"
     }
   ],
@@ -36,20 +36,18 @@
     {
       "group": "Guides",
       "pages": [
-        "guides/basic-usage.mdx",
-        "guides/demos",
+        "guides/basic-usage",
         "guides/running-locally",
+        "guides/streaming-response",
         "guides/advanced-terminal-usage",
         "guides/multiple-instances",
-        "guides/streaming-response"
+        "guides/os-mode"
       ]
     },
     {
       "group": "Settings",
       "pages": [
-        "settings/all-settings",
-        "settings/profiles",
-        "settings/example-profiles"
+        "settings/all-settings"
       ]
     },
     {
@@ -99,6 +97,15 @@
       ]
     },
     {
+      "group": "Code Execution",
+      "pages": [
+        "code-execution/settings",
+        "code-execution/usage",
+        "code-execution/computer-api",
+        "code-execution/custom-languages"
+      ]
+    },
+    {
       "group": "Protocols",
       "pages": ["protocols/lmc-messages"]
     },
@@ -114,10 +121,6 @@
         "safety/safe-mode",
         "safety/best-practices"
       ]
-    },
-    {
-      "group": "Protocols",
-      "pages": ["protocols/lmc-messages"]
     },
     {
       "group": "Telemetry",
