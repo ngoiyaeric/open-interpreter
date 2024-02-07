@@ -44,9 +44,9 @@ class JupyterLanguage(BaseLanguage):
         backend = "Agg"
 
         code = f"""
-        import matplotlib
-        matplotlib.use('{backend}')
-        """
+import matplotlib
+matplotlib.use('{backend}')
+        """.strip()
         for _ in self.run(code):
             pass
 
@@ -67,7 +67,11 @@ class JupyterLanguage(BaseLanguage):
         ### OFFICIAL OPEN INTERPRETER GOVERNMENT ISSUE SKILL LIBRARY ###
         ################################################################
 
-        functions = string_to_python(code)
+        try:
+            functions = string_to_python(code)
+        except:
+            # Non blocking
+            functions = {}
         skill_library_path = self.computer.skills.path
         for filename, code in functions.items():
             with open(f"{skill_library_path}/{filename}.py", "w") as file:
@@ -379,5 +383,41 @@ def wrap_in_try_except(code):
     return ast.unparse(parsed_code)
 
 
-def string_to_python(code):
-    return {"function_name": "def function_name(): ..."}
+def string_to_python(code_as_string):
+    parsed_code = ast.parse(code_as_string)
+
+    # Initialize containers for different categories
+    import_statements = []
+    functions = []
+    functions_dict = {}
+
+    # Traverse the AST
+    for node in ast.walk(parsed_code):
+        # Check for import statements
+        if isinstance(node, ast.Import) or isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                # Handling the alias in import statements
+                if alias.asname:
+                    import_statements.append(f"import {alias.name} as {alias.asname}")
+                else:
+                    import_statements.append(f"import {alias.name}")
+        # Check for function definitions
+        elif isinstance(node, ast.FunctionDef):
+            func_info = {
+                "name": node.name,
+                "docstring": ast.get_docstring(node),
+                "body": "\n    ".join(
+                    ast.unparse(stmt) for stmt in node.body[1:]
+                ),  # Excludes the docstring
+            }
+            functions.append(func_info)
+
+    for func in functions:
+        # Consolidating import statements and function definition
+        function_content = "\n".join(import_statements) + "\n\n"
+        function_content += f"def {func['name']}():\n    \"\"\"{func['docstring']}\"\"\"\n    {func['body']}\n"
+
+        # Adding to dictionary
+        functions_dict[func["name"]] = function_content
+
+    return functions_dict
