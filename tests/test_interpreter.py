@@ -22,45 +22,102 @@ import pytest
 from websocket import create_connection
 
 
+def test_skills():
+    import json
+
+    interpreter.model = "gpt-3.5"
+
+    messages = ["USER: Hey can you search the web for me?\nAI: Sure!"]
+
+    combined_messages = "\\n".join(json.dumps(x) for x in messages[-3:])
+    query_msg = interpreter.chat(
+        f"This is the conversation so far: {combined_messages}. What is a hypothetical python function that might help resolve the user's query? Respond with nothing but the hypothetical function name exactly."
+    )
+    query = query_msg[0]["content"]
+    # skills_path = '/01OS/server/skills'
+    # interpreter.computer.skills.path = skills_path
+    print(interpreter.computer.skills.path)
+    print("Path: ", interpreter.computer.skills.path)
+    print("Files in the path: ")
+    interpreter.computer.run("python", "def testing_skilsl():\n    print('hi')")
+    for file in os.listdir(interpreter.computer.skills.path):
+        print(file)
+    interpreter.computer.run("python", "def testing_skill():\n    print('hi')")
+    print("Files in the path: ")
+    for file in os.listdir(interpreter.computer.skills.path):
+        print(file)
+    skills = interpreter.computer.skills.search(query)
+    lowercase_skills = [skill[0].lower() + skill[1:] for skill in skills]
+    output = "\\n".join(lowercase_skills)
+    assert "testing_skilsl" in str(output)
+
+
 @pytest.mark.skip(reason="Computer with display only + no way to fail test")
 def test_display_api():
     start = time.time()
 
+    # interpreter.computer.display.find_text("submit")
+    # assert False
+
     def say(icon_name):
         import subprocess
 
-        subprocess.run(["say", "-v", "Fred", "click the " + icon_name + " icon"])
+        subprocess.run(["say", "-v", "Fred", icon_name])
 
     icons = [
-        "run",
-        "walk",
-        "bike",
-        "heart",
-        "back arrow",
-        "left arrow",
-        "solid mail",
-        "music",
+        "Submit",
+        "Yes",
+        "Profile picture icon",
+        "Left arrow",
+        "Magnifying glass",
         "star",
-        "microphone",
-        "lock",
-        "paper plane",
-        "magnifying glass",
-        "car",
-        "gear",
-        "martini",
-        "mountain",
-        "photo",
-        "boat",
-        "pizza",
-        "printer",
+        "record icon icon",
+        "age text",
+        "call icon icon",
+        "account text",
+        "home icon",
+        "settings text",
+        "form text",
+        "gear icon icon",
+        "trash icon",
+        "new folder icon",
+        "phone icon icon",
+        "home button",
+        "trash button icon",
+        "folder icon icon",
+        "black heart icon icon",
+        "white heart icon icon",
+        "image icon",
+        "test@mail.com text",
     ]
 
     # from random import shuffle
     # shuffle(icons)
 
+    say("The test will begin in 3")
+    time.sleep(1)
+    say("2")
+    time.sleep(1)
+    say("1")
+    time.sleep(1)
+
+    import pyautogui
+
+    pyautogui.mouseDown()
+
     for icon in icons:
-        say(icon)
-        interpreter.computer.mouse.move(icon=icon)
+        if icon.endswith("icon icon"):
+            say("click the " + icon)
+            interpreter.computer.mouse.move(icon=icon.replace("icon icon", "icon"))
+        elif icon.endswith("icon"):
+            say("click the " + icon)
+            interpreter.computer.mouse.move(icon=icon.replace(" icon", ""))
+        elif icon.endswith("text"):
+            say("click " + icon)
+            interpreter.computer.mouse.move(icon.replace(" text", ""))
+        else:
+            say("click " + icon)
+            interpreter.computer.mouse.move(icon=icon)
 
     # interpreter.computer.mouse.move(icon="caution")
     # interpreter.computer.mouse.move(icon="bluetooth")

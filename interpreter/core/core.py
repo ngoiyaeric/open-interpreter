@@ -2,8 +2,6 @@
 This file defines the Interpreter class.
 It's the main file. `from interpreter import interpreter` will import an instance of this class.
 """
-
-import asyncio
 import json
 import os
 import threading
@@ -62,6 +60,10 @@ class OpenInterpreter:
         system_message=default_system_message,
         custom_instructions="",
         computer=None,
+        sync_computer=True,
+        import_computer_api=True,
+        skills_path=None,
+        import_skills=True,
     ):
         # State
         self.messages = [] if messages is None else messages
@@ -97,6 +99,17 @@ class OpenInterpreter:
 
         # Computer
         self.computer = Computer() if computer is None else computer
+
+        self.sync_computer = sync_computer
+        self.computer.import_computer_api = import_computer_api
+
+        # Skills
+        if skills_path:
+            self.computer.skills.path = skills_path
+
+        self.import_skills = import_skills
+        if import_skills:
+            self.computer.skills.import_skills()
 
     def server(self, *args, **kwargs):
         server(self, *args, **kwargs)

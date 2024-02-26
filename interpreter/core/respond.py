@@ -31,6 +31,12 @@ def respond(interpreter):
         if interpreter.custom_instructions:
             system_message += "\n\n" + interpreter.custom_instructions
 
+        # Storing the messages so they're accessible in the interpreter's computer
+        if interpreter.sync_computer:
+            output = interpreter.computer.run(
+                "python", f"messages={interpreter.messages}"
+            )
+
         ## Rendering ↓
         rendered_system_message = render_message(interpreter, system_message)
         ## Rendering ↑
@@ -130,7 +136,7 @@ If LM Studio's local server is running, please try a language model with a diffe
                 language = interpreter.messages[-1]["format"].lower().strip()
                 code = interpreter.messages[-1]["content"]
 
-                if interpreter.os and language == "text":
+                if language == "text":
                     # It does this sometimes just to take notes. Let it, it's useful.
                     # In the future we should probably not detect this behavior as code at all.
                     continue
@@ -170,8 +176,8 @@ If LM Studio's local server is running, please try a language model with a diffe
                     # We need to tell python what we (the generator) should do if they exit
                     break
 
-                # don't let it import computer on os mode — we handle that!
-                if interpreter.os and language == "python":
+                # don't let it import computer — we handle that!
+                if interpreter.computer.import_computer_api and language == "python":
                     code = code.replace("import computer\n", "pass\n")
                     code = re.sub(
                         r"import computer\.(\w+) as (\w+)", r"\2 = computer.\1", code
@@ -202,7 +208,7 @@ If LM Studio's local server is running, please try a language model with a diffe
 
                 # sync up the interpreter's computer with your computer
                 try:
-                    if interpreter.os and language == "python":
+                    if interpreter.sync_computer and language == "python":
                         computer_dict = interpreter.computer.to_dict()
                         if computer_dict:
                             computer_json = json.dumps(computer_dict)
@@ -221,7 +227,7 @@ If LM Studio's local server is running, please try a language model with a diffe
 
                 # sync up your computer with the interpreter's computer
                 try:
-                    if interpreter.os and language == "python":
+                    if interpreter.sync_computer and language == "python":
                         # sync up the interpreter's computer with your computer
                         result = interpreter.computer.run(
                             "python",
@@ -256,7 +262,7 @@ If LM Studio's local server is running, please try a language model with a diffe
             ## FORCE TASK COMLETION
             # This makes it utter specific phrases if it doesn't want to be told to "Proceed."
 
-            force_task_completion_message = """Proceed. You CAN run code on my machine. If you want to run code, start your message with "```"! If the entire task I asked for is done, say exactly 'The task is done.' If it's impossible, say 'The task is impossible.' (If I haven't provided a task, say exactly 'Let me know what you'd like to do next.') Otherwise keep going."""
+            force_task_completion_message = """Proceed. You CAN run code on my machine. If you want to run code, start your message with "```"! If the entire task I asked for is done, say exactly 'The task is done.' If you need some specific information (like username or password) say EXACTLY 'Please provide more information.' If it's impossible, say 'The task is impossible.' (If I haven't provided a task, say exactly 'Let me know what you'd like to do next.') Otherwise keep going."""
             if interpreter.os:
                 force_task_completion_message.replace(
                     "If the entire task I asked for is done,",
@@ -266,6 +272,7 @@ If LM Studio's local server is running, please try a language model with a diffe
                 "the task is done.",
                 "the task is impossible.",
                 "let me know what you'd like to do next.",
+                "please provide more information.",
             ]
 
             if (

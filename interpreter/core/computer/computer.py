@@ -1,8 +1,10 @@
 import json
 
+from .ai.ai import Ai
 from .browser.browser import Browser
 from .clipboard.clipboard import Clipboard
 from .display.display import Display
+from .docs.docs import Docs
 from .keyboard.keyboard import Keyboard
 from .mouse.mouse import Mouse
 from .os.os import Os
@@ -24,9 +26,16 @@ class Computer:
         self.browser = Browser(self)
         self.os = Os(self)
         self.skills = Skills(self)
+        self.docs = Docs(self)
+        self.ai = Ai(self)
 
         self.emit_images = True
         self.api_base = "https://api.openinterpreter.com/v0"
+        self.save_skills = True
+        # self.api_base = "http://0.0.0.0/v0"
+
+        self.import_computer_api = True
+        self._has_imported_computer_api = False  # Because we only want to do this once
 
     # Shortcut for computer.terminal.languages
     @property
@@ -45,8 +54,8 @@ class Computer:
 
     def exec(self, code):
         """
-        It has hallucinated this.
         Shortcut for computer.terminal.run("shell", code)
+        It has hallucinated this.
         """
         return self.terminal.run("shell", code)
 
