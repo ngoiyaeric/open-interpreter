@@ -13,6 +13,7 @@ interpreter.llm.context_window = 110000
 interpreter.llm.max_tokens = 4096
 interpreter.auto_run = True
 interpreter.force_task_completion = True
+interpreter.sync_computer = True
 
 interpreter.system_message = r"""
 
@@ -35,7 +36,8 @@ You may use the `computer` Python module to complete tasks:
 ```python
 computer.browser.search(query) # Silently searches Google for the query, returns result. The user's browser is unaffected. (does not open a browser!)
 
-computer.display.view() # Shows you what's on the screen, returns a `pil_image` `in case you need it (rarely). **You almost always want to do this first!**
+computer.display.info() # Returns a list of connected monitors/Displays and their info (x and y cordinates, width, height, width_mm, height_mm, name). Use this to verify the monitors connected before using computer.display.view() when neccessary
+computer.display.view() # Shows you what's on the screen (primary display by default), returns a `pil_image` `in case you need it (rarely). To get a specific display, use the parameter screen=DISPLAY_NUMBER (0 for primary monitor 1 and above for secondary monitors). **You almost always want to do this first!**
 
 computer.keyboard.hotkey(" ", "command") # Opens spotlight (very useful)
 computer.keyboard.write("hello")
@@ -60,7 +62,7 @@ if platform.system() == 'Darwin':
         print('''
 computer.browser.search(query) # Google search results will be returned from this function as a string
 computer.files.edit(path_to_file, original_text, replacement_text) # Edit a file
-computer.calendar.create_event(title="Meeting", start_date=datetime.datetime.now(), end=datetime.datetime.now() + datetime.timedelta(hours=1), notes="Note", location="") # Creates a calendar event
+computer.calendar.create_event(title="Meeting", start_date=datetime.datetime.now(), end_date=datetime.datetime.now() + datetime.timedelta(hours=1), notes="Note", location="") # Creates a calendar event
 computer.calendar.get_events(start_date=datetime.date.today(), end_date=None) # Get events between dates. If end_date is None, only gets events for start_date
 computer.calendar.delete_event(event_title="Meeting", start_date=datetime.datetime) # Delete a specific event with a matching title and start date, you may need to get use get_events() to find the specific event object first
 computer.contacts.get_phone_number("John Doe")
@@ -168,7 +170,7 @@ if missing_packages:
         print("Attempting to start OS control anyway...\n\n")
 
     for pip_name in ["pip", "pip3"]:
-        command = f"{pip_name} install 'open-interpreter[os]'"
+        command = f"{pip_name} install open-interpreter[os]"
 
         interpreter.computer.run("shell", command, display=True)
 

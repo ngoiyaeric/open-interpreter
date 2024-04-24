@@ -9,8 +9,7 @@
     <img src="https://img.shields.io/static/v1?label=license&message=AGPL&color=white&style=flat" alt="License"/>
     <br>
     <br>
-    <strong>Let language models run code.</strong><br>
-    <br><a href="https://openinterpreter.com">Get early access to the desktop app</a>‎ ‎ |‎ ‎ <a href="https://docs.openinterpreter.com/">Documentation</a><br>
+    <br><a href="https://0ggfznkwh4j.typeform.com/to/G21i9lJ2">Get early access to the desktop app</a>‎ ‎ |‎ ‎ <a href="https://docs.openinterpreter.com/">Documentation</a><br>
 </p>
 
 <br>
@@ -19,7 +18,7 @@
 
 <br>
 <p align="center">
-<strong>The New Computer Update</strong> introduces <strong><code>--os</code></strong> and a new <strong>Computer API</strong>. <a href="https://changes.openinterpreter.com/log/the-new-computer-update">Read On →</a>
+<strong>The New Computer Update</strong> introduced <strong><code>--os</code></strong> and a new <strong>Computer API</strong>. <a href="https://changes.openinterpreter.com/log/the-new-computer-update">Read On →</a>
 </p>
 <br>
 
@@ -82,6 +81,10 @@ from interpreter import interpreter
 interpreter.chat("Plot AAPL and META's normalized stock prices") # Executes a single command
 interpreter.chat() # Starts an interactive chat
 ```
+
+### GitHub Codespaces
+
+Press the `,` key on this repository's GitHub page to create a codespace. After a moment, you'll receive a cloud virtual machine environment pre-installed with open-interpreter. You can then start interacting with it directly and freely confirm its execution of system commands without worrying about damaging the system.
 
 ## Comparison to ChatGPT's Code Interpreter
 
@@ -359,6 +362,34 @@ There is **experimental** support for a [safe mode](docs/SAFE_MODE.md) to help m
 Open Interpreter equips a [function-calling language model](https://platform.openai.com/docs/guides/gpt/function-calling) with an `exec()` function, which accepts a `language` (like "Python" or "JavaScript") and `code` to run.
 
 We then stream the model's messages, code, and your system's outputs to the terminal as Markdown.
+
+# Access Documentation Offline
+
+The full [documentation](https://docs.openinterpreter.com/) is accessible on-the-go without the need for an internet connection.
+
+[Node](https://nodejs.org/en) is a pre-requisite:
+
+- Version 18.17.0 or any later 18.x.x version.
+- Version 20.3.0 or any later 20.x.x version.
+- Any version starting from 21.0.0 onwards, with no upper limit specified.
+
+Install [Mintlify](https://mintlify.com/):
+
+```bash
+npm i -g mintlify@latest
+```
+
+Change into the docs directory and run the appropriate command:
+
+```bash
+# Assuming you're at the project's root directory
+cd ./docs
+
+# Run the documentation server
+mintlify dev
+```
+
+A new browser window should open. The documentation will be available at [http://localhost:3000](http://localhost:3000) as long as the documentation server is running.
 
 # Contributing
 

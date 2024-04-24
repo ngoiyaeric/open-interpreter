@@ -40,10 +40,10 @@ def convert_to_openai_messages(
                     ),
                     # parsed_arguments isn't actually an OpenAI thing, it's an OI thing.
                     # but it's soo useful!
-                    "parsed_arguments": {
-                        "language": message["format"],
-                        "code": message["content"],
-                    },
+                    # "parsed_arguments": {
+                    #     "language": message["format"],
+                    #     "code": message["content"],
+                    # },
                 }
                 # Add empty content to avoid error "openai.error.InvalidRequestError: 'content' is a required property - 'messages.*'"
                 # especially for the OpenAI service hosted on Azure
@@ -170,7 +170,8 @@ def convert_to_openai_messages(
         else:
             raise Exception(f"Unable to convert this message type: {message}")
 
-        new_message["content"] = new_message["content"].strip()
+        if isinstance(new_message["content"], str):
+            new_message["content"] = new_message["content"].strip()
 
         new_messages.append(new_message)
 

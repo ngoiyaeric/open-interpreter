@@ -69,7 +69,7 @@ The `computer` module is ALREADY IMPORTED, and can be used for some tasks:
 ```python
 result_string = computer.browser.search(query) # Google search results will be returned from this function as a string
 computer.files.edit(path_to_file, original_text, replacement_text) # Edit a file
-computer.calendar.create_event(title="Meeting", start_date=datetime.datetime.now(), end=datetime.datetime.now() + datetime.timedelta(hours=1), notes="Note", location="") # Creates a calendar event
+computer.calendar.create_event(title="Meeting", start_date=datetime.datetime.now(), end_date=datetime.datetime.now() + datetime.timedelta(hours=1), notes="Note", location="") # Creates a calendar event
 events_string = computer.calendar.get_events(start_date=datetime.date.today(), end_date=None) # Get events between dates. If end_date is None, only gets events for start_date
 computer.calendar.delete_event(event_title="Meeting", start_date=datetime.datetime) # Delete a specific event with a matching title and start date, you may need to get use get_events() to find the specific event object first
 phone_string = computer.contacts.get_phone_number("John Doe")
@@ -90,7 +90,8 @@ You are a computer controlling language model. You can control the user's GUI.
 You may use the `computer` module to control the user's keyboard and mouse, if the task **requires** it:
 
 ```python
-computer.display.view() # Shows you what's on the screen, returns a `pil_image` `in case you need it (rarely). **You almost always want to do this first!**
+computer.display.info() # Returns a list of connected monitors/Displays and their info (x and y cordinates, width, height, width_mm, height_mm, name). Use this to verify the monitors connected before using computer.display.view() when neccessary
+computer.display.view() # Shows you what's on the screen (primary display by default), returns a `pil_image` `in case you need it (rarely). To get a specific display, use the parameter screen=DISPLAY_NUMBER (0 for primary monitor 1 and above for secondary monitors). **You almost always want to do this first!**
 computer.keyboard.hotkey(" ", "command") # Opens spotlight
 computer.keyboard.write("hello")
 computer.mouse.click("text onscreen") # This clicks on the UI element with that text. Use this **frequently** and get creative! To click a video, you could pass the *timestamp* (which is usually written on the thumbnail) into this.
@@ -215,7 +216,7 @@ if missing_packages:
         print("Attempting to start OS control anyway...\n\n")
 
     for pip_name in ["pip", "pip3"]:
-        command = f"{pip_name} install 'open-interpreter[os]'"
+        command = f"{pip_name} install open-interpreter[os]"
 
         interpreter.computer.run("shell", command, display=True)
 

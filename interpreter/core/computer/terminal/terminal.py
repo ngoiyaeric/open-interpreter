@@ -6,6 +6,7 @@ from .languages.powershell import PowerShell
 from .languages.python import Python
 from .languages.r import R
 from .languages.react import React
+from .languages.ruby import Ruby
 from .languages.shell import Shell
 
 # Should this be renamed to OS or System?
@@ -15,6 +16,7 @@ class Terminal:
     def __init__(self, computer):
         self.computer = computer
         self.languages = [
+            Ruby,
             Python,
             Shell,
             JavaScript,
@@ -29,18 +31,14 @@ class Terminal:
     def get_language(self, language):
         for lang in self.languages:
             if language.lower() == lang.name.lower() or (
-                hasattr(lang, "aliases") and language in lang.aliases
+                hasattr(lang, "aliases") and language.lower() in (alias.lower() for alias in lang.aliases)
             ):
                 return lang
         return None
 
     def run(self, language, code, stream=False, display=False):
-        if (
-            language == "python"
-            and self.computer.import_computer_api
-            and "computer" in code
-        ):
-            if not self.computer._has_imported_computer_api:
+        if language == "python":
+            if self.computer.import_computer_api and not self.computer._has_imported_computer_api and "computer" in code:
                 self.computer._has_imported_computer_api = True
                 # Give it access to the computer via Python
                 self.computer.run(
@@ -48,6 +46,14 @@ class Terminal:
                     code="import time\nfrom interpreter import interpreter\ncomputer = interpreter.computer",  # We ask it to use time, so
                     display=self.computer.verbose,
                 )
+
+            if self.computer.import_skills and not self.computer._has_imported_skills:
+                self.computer._has_imported_skills = True
+                self.computer.skills.import_skills()
+
+        # Llama 3 likes to hallucinate this tick new line thing at the start of code blocks
+        if code.startswith("`\n"):
+            code = code[2:].strip()
 
         if stream == False:
             # If stream == False, *pull* from _streaming_run.
@@ -104,7 +110,7 @@ class Terminal:
                     and chunk.get("format") != "active_line"
                     and chunk.get("content")
                 ):
-                    print(chunk["content"])
+                    print(chunk["content"], end="")
 
         except GeneratorExit:
             self.stop()

@@ -1,7 +1,10 @@
 """
 Sends anonymous telemetry to posthog. This helps us know how people are using OI / what needs our focus.
 
-Disable this by running `interpreter --disable_telemetry` or `interpreter.anonymized_telemetry = False` or setting the `ANONYMIZED_TELEMETRY` os var to `false`.
+Disable anonymous telemetry by execute one of below:
+1. Running `interpreter --disable_telemetry` in command line.
+2. Executing `interpreter.disable_telemetry = True` in Python.
+3. Setting the `DISABLE_TELEMETRY` os var to `true`.
 
 based on ChromaDB's telemetry: https://github.com/chroma-core/chroma/tree/main/chromadb/telemetry/product
 """
@@ -12,6 +15,7 @@ import uuid
 
 import pkg_resources
 from posthog import Posthog
+import requests
 
 posthog = Posthog(
     "phc_6cmXy4MEbLfNGezqGjuUTY8abLu0sAwtGzZFpQW97lc", host="https://app.posthog.com"
@@ -57,3 +61,29 @@ def send_telemetry(event_name, properties=None):
     except:
         # Non blocking
         pass
+
+
+def contribute_conversations(conversations):
+    url = "https://api.openinterpreter.com/v0/conversations/contribute/"
+    version = pkg_resources.get_distribution("open-interpreter").version
+    
+    if conversations and len(conversations) > 1:
+        payload = {
+            "conversations": [conv for sublist in conversations for conv in sublist],
+            "oi_version": version
+        }
+    else:
+        payload = {
+            "conversations": [conversations[0]],
+            "oi_version": version
+        }
+    try:
+        response = requests.post(url, json=payload)
+        if response.status_code != 200:
+            print(f"Failed to contribute conversation: {response.status_code} {response.text}")
+            return None
+        else:
+            print(f"Successfully contributed conversation!")
+    except requests.RequestException as e:
+        print(f"Failed to contribute conversation: {e}")
+        return None

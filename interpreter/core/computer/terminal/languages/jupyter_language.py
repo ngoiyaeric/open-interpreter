@@ -10,6 +10,7 @@ import re
 import threading
 import time
 import traceback
+import logging
 
 from jupyter_client import KernelManager
 
@@ -21,10 +22,11 @@ DEBUG_MODE = False
 class JupyterLanguage(BaseLanguage):
     file_extension = "py"
     name = "Python"
+    aliases = ["py"]
 
     def __init__(self, computer):
         self.computer = computer
-
+            
         self.km = KernelManager(kernel_name="python3")
         self.km.start_kernel()
         self.kc = self.km.client()
