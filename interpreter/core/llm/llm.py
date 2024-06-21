@@ -1,4 +1,13 @@
+import os
+
+os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
 import litellm
+
+litellm.suppress_debug_info = True
+import subprocess
+import time
+import uuid
+
 import tokentrim as tt
 
 from ...terminal_interface.utils.display_markdown_message import (
@@ -7,9 +16,6 @@ from ...terminal_interface.utils.display_markdown_message import (
 from .run_function_calling_llm import run_function_calling_llm
 from .run_text_llm import run_text_llm
 from .utils.convert_to_openai_messages import convert_to_openai_messages
-
-litellm.suppress_debug_info = True
-import time
 
 
 class Llm:
@@ -42,6 +48,7 @@ class Llm:
         self.api_base = None
         self.api_key = None
         self.api_version = None
+        self._is_loaded = False
 
         # Budget manager powered by LiteLLM
         self.max_budget = None
@@ -64,10 +71,21 @@ class Llm:
                 msg["role"] != "system"
             ), "No message after the first can have the role 'system'"
 
+        model = self.model
+        # Setup our model endpoint
+        if model == "i":
+            model = "openai/i"
+            if not hasattr(self.interpreter, "conversation_id"):  # Only do this once
+                self.context_window = 7000
+                self.api_key = "x"
+                self.max_tokens = 1000
+                self.api_base = "https://api.openinterpreter.com/v0"
+                self.interpreter.conversation_id = str(uuid.uuid4())
+
         # Detect function support
         if self.supports_functions == None:
             try:
-                if litellm.supports_function_calling(self.model):
+                if litellm.supports_function_calling(model):
                     self.supports_functions = True
                 else:
                     self.supports_functions = False
@@ -77,7 +95,7 @@ class Llm:
         # Detect vision support
         if self.supports_vision == None:
             try:
-                if litellm.supports_vision(self.model):
+                if litellm.supports_vision(model):
                     self.supports_vision = True
                 else:
                     self.supports_vision = False
@@ -105,11 +123,40 @@ class Llm:
         elif self.supports_vision == False and self.vision_renderer:
             for img_msg in image_messages:
                 if img_msg["format"] != "description":
-                    img_msg["content"] = (
-                        "Imagine I have just shown you an image with this description: "
-                        + self.vision_renderer(lmc=img_msg)
-                    )
-                    img_msg["format"] = "description"
+                    self.interpreter.display_message("\n  *Viewing image...*\n")
+
+                    if img_msg["format"] == "path":
+                        precursor = f"The image I'm referring to ({img_msg['content']}) contains the following: "
+                        if self.interpreter.computer.import_computer_api:
+                            postcursor = f"\nIf you want to ask questions about the image, run `computer.vision.query(path='{img_msg['content']}', query='(ask any question here)')` and a vision AI will answer it."
+                        else:
+                            postcursor = ""
+                    else:
+                        precursor = "Imagine I have just shown you an image with this description: "
+                        postcursor = ""
+
+                    try:
+                        image_description = self.vision_renderer(lmc=img_msg)
+                        ocr = self.interpreter.computer.vision.ocr(lmc=img_msg)
+
+                        # It would be nice to format this as a message to the user and display it like: "I see: image_description"
+
+                        img_msg["content"] = (
+                            precursor
+                            + image_description
+                            + "\n---\nI've OCR'd the image, this is the result (this may or may not be relevant. If it's not relevant, ignore this): '''\n"
+                            + ocr
+                            + "\n'''"
+                            + postcursor
+                        )
+                        img_msg["format"] = "description"
+
+                    except ImportError:
+                        print(
+                            "\nTo use local vision, run `pip install 'open-interpreter[local]'`.\n"
+                        )
+                        img_msg["format"] = "description"
+                        img_msg["content"] = ""
 
         # Convert to OpenAI messages format
         messages = convert_to_openai_messages(
@@ -144,7 +191,7 @@ class Llm:
             else:
                 try:
                     messages = tt.trim(
-                        messages, system_message=system_message, model=self.model
+                        messages, system_message=system_message, model=model
                     )
                 except:
                     if len(messages) == 1:
@@ -163,9 +210,9 @@ Continuing...
                                 """
 **We were unable to determine the context window of this model.** Defaulting to 3000.
 
-If your model can handle more, run `interpreter.llm.context_window = {token limit}`.
+If your model can handle more, run `self.context_window = {token limit}`.
 
-Also please set `interpreter.llm.max_tokens = {max tokens per response}`.
+Also please set `self.max_tokens = {max tokens per response}`.
 
 Continuing...
                             """
@@ -186,7 +233,7 @@ Continuing...
         ## Start forming the request
 
         params = {
-            "model": self.model,
+            "model": model,
             "messages": messages,
             "stream": True,
         }
@@ -202,6 +249,8 @@ Continuing...
             params["max_tokens"] = self.max_tokens
         if self.temperature:
             params["temperature"] = self.temperature
+        if hasattr(self.interpreter, "conversation_id"):
+            params["conversation_id"] = self.interpreter.conversation_id
 
         # Set some params directly on LiteLLM
         if self.max_budget:
@@ -225,6 +274,62 @@ Continuing...
         else:
             yield from run_text_llm(self, params)
 
+    # If you change model, set _is_loaded to false
+    @property
+    def model(self):
+        return self._model
+
+    @model.setter
+    def model(self, value):
+        self._model = value
+        self._is_loaded = False
+
+    def load(self):
+        if self._is_loaded:
+            return
+
+        if self.model.startswith("ollama/"):
+            # WOAH we should also hit up ollama and set max_tokens and context_window based on the LLM. I think they let u do that
+
+            model_name = self.model.replace("ollama/", "")
+            try:
+                # List out all downloaded ollama models. Will fail if ollama isn't installed
+                result = subprocess.run(
+                    ["ollama", "list"], capture_output=True, text=True, check=True
+                )
+            except Exception as e:
+                print(str(e))
+                self.interpreter.display_message(
+                    f"> Ollama not found\n\nPlease download Ollama from [ollama.com](https://ollama.com/) to use `{model_name}`.\n"
+                )
+                exit()
+
+            lines = result.stdout.split("\n")
+            names = [
+                line.split()[0].replace(":latest", "")
+                for line in lines[1:]
+                if line.strip()
+            ]  # Extract names, trim out ":latest", skip header
+
+            if model_name not in names:
+                self.interpreter.display_message(f"\nDownloading {model_name}...\n")
+                subprocess.run(["ollama", "pull", model_name], check=True)
+
+            # Send a ping, which will actually load the model
+            # print(f"\nLoading {model_name}...\n")
+
+            old_max_tokens = self.max_tokens
+            self.max_tokens = 1
+            self.interpreter.computer.ai.chat("ping")
+            self.max_tokens = old_max_tokens
+
+            # self.interpreter.display_message("\n*Model loaded.*\n")
+
+        # Validate LLM should be moved here!!
+
+        self._is_loaded = True
+        return
+
 
 def fixed_litellm_completions(**params):
     """
@@ -233,8 +338,15 @@ def fixed_litellm_completions(**params):
     """
 
     if "local" in params.get("model"):
-        # Kinda hacky, but this helps
+        # Kinda hacky, but this helps sometimes
         params["stop"] = ["<|assistant|>", "<|end|>", "<|eot_id|>"]
+
+    if params.get("model") == "i" and "conversation_id" in params:
+        litellm.drop_params = (
+            False  # If we don't do this, litellm will drop this param!
+        )
+    else:
+        litellm.drop_params = True
 
     # Run completion
     first_error = None
@@ -248,7 +360,7 @@ def fixed_litellm_completions(**params):
 
         if "api key" in str(first_error).lower() and "api_key" not in params:
             print(
-                "LiteLLM requires an API key. Please set a dummy API key to prevent this message. (e.g `interpreter --api_key x` or `interpreter.llm.api_key = 'x'`)"
+                "LiteLLM requires an API key. Please set a dummy API key to prevent this message. (e.g `interpreter --api_key x` or `self.api_key = 'x'`)"
             )
 
         # So, let's try one more time with a dummy API key:
